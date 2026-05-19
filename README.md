@@ -329,9 +329,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ## 👤 Author
 
-**Dheeraj Chowdary Anne**
-
-**Pravallika Reddy Sabbasani**
+**Dheeraj Chowdary Anne and Pravallika Reddy Sabbasani**
 
 Built as a capstone project demonstrating agentic AI patterns:
 - Multi-modal Claude Vision for document understanding
