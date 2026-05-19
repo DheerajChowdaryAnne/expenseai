@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Expense Reimbursement Report</title>
+  <style>
+    /* ============================================================
+       EXPENSE REPORT PDF — WeasyPrint optimized (Letter page)
+       ============================================================ */
+
+    @page {
+      size: Letter;
+      margin: 1.8cm 2.2cm;
+      @bottom-center {
+        content: "CONFIDENTIAL — Expense Reimbursement Report";
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 7pt;
+        color: #94a3b8;
+      }
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 7pt;
+        color: #94a3b8;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 9.5pt;
+      color: #1e293b;
+      line-height: 1.5;
+      background: #fff;
+    }
+
+    /* ---- Header ---- */
+    .report-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 14pt;
+      margin-bottom: 18pt;
+      border-bottom: 3pt solid #1a4f91;
+    }
+
+    .brand-badge {
+      background: #1a4f91;
+      color: #fff;
+      font-size: 8pt;
+      font-weight: 700;
+      padding: 3pt 8pt;
+      border-radius: 4pt;
+      letter-spacing: 0.5pt;
+      display: inline-block;
+      margin-bottom: 6pt;
+    }
+
+    .report-title {
+      font-size: 18pt;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: -0.5pt;
+      line-height: 1.2;
+    }
+
+    .report-subtitle {
+      font-size: 9pt;
+      color: #64748b;
+      margin-top: 4pt;
+    }
+
+    .header-right {
+      text-align: right;
+      font-size: 8.5pt;
+      color: #64748b;
+      line-height: 1.8;
+    }
+
+    /* ---- Info grid ---- */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 90pt 1fr 90pt 1fr;
+      gap: 6pt 12pt;
+      background: #f8fafc;
+      border: 1pt solid #e2e8f0;
+      border-radius: 6pt;
+      padding: 12pt 14pt;
+      margin-bottom: 18pt;
+    }
+
+    .info-label {
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.4pt;
+      padding-top: 2pt;
+    }
+
+    .info-value {
+      font-size: 9pt;
+      color: #0f172a;
+      font-weight: 500;
+    }
+
+    /* ---- Section heading ---- */
+    h2 {
+      font-size: 11pt;
+      color: #1a4f91;
+      border-bottom: 1pt solid #bfdbfe;
+      padding-bottom: 4pt;
+      margin: 20pt 0 10pt;
+      font-weight: 700;
+    }
+
+    /* ---- Expense table ---- */
+    .expense-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5pt;
+      margin-bottom: 8pt;
+    }
+
+    .expense-table thead tr { background: #1a4f91; }
+
+    .expense-table th {
+      color: #fff;
+      text-align: left;
+      padding: 6pt 8pt;
+      font-weight: 600;
+      font-size: 7.5pt;
+      letter-spacing: 0.3pt;
+      text-transform: uppercase;
+    }
+
+    .expense-table th.right, .expense-table td.right { text-align: right; }
+    .expense-table th.center, .expense-table td.center { text-align: center; }
+
+    .expense-table tbody tr:nth-child(even) td { background: #f8fafc; }
+
+    .expense-table td {
+      padding: 6pt 8pt;
+      border-bottom: 0.5pt solid #e2e8f0;
+      vertical-align: middle;
+    }
+
+    .expense-table .total-row td {
+      background: #eff6ff !important;
+      border-top: 1.5pt solid #1a4f91;
+      border-bottom: none;
+      font-weight: 700;
+      font-size: 9pt;
+      color: #1a4f91;
+      padding-top: 7pt;
+      padding-bottom: 7pt;
+    }
+
+    /* ---- Badges ---- */
+    .badge {
+      display: inline-block;
+      padding: 1.5pt 6pt;
+      border-radius: 10pt;
+      font-size: 7pt;
+      font-weight: 700;
+      letter-spacing: 0.2pt;
+    }
+
+    .badge-ok       { background: #dcfce7; color: #15803d; }
+    .badge-adjusted { background: #fef3c7; color: #92400e; }
+    .badge-review   { background: #fee2e2; color: #991b1b; }
+
+    /* ---- Legend ---- */
+    .legend {
+      font-size: 7.5pt; color: #64748b;
+      margin-top: 5pt;
+      display: flex; gap: 12pt; align-items: center;
+    }
+
+    /* ---- Policy notes ---- */
+    .policy-item {
+      background: #f8fafc;
+      border: 0.5pt solid #e2e8f0;
+      border-left: 3pt solid #3b82f6;
+      border-radius: 4pt;
+      padding: 7pt 10pt;
+      margin-bottom: 6pt;
+      font-size: 8.5pt;
+    }
+    .policy-item.adjusted { border-left-color: #f59e0b; background: #fffbeb; }
+    .policy-item.review   { border-left-color: #ef4444; background: #fef2f2; }
+
+    .pi-title { font-weight: 700; color: #0f172a; margin-bottom: 3pt; font-size: 8.5pt; }
+    .pi-source { font-size: 7.5pt; color: #1a4f91; margin-bottom: 3pt; }
+    .pi-note { color: #475569; font-size: 8pt; line-height: 1.5; }
+
+    /* ---- Summary box ---- */
+    .summary-box {
+      background: #f8fafc;
+      border: 1pt solid #e2e8f0;
+      border-radius: 6pt;
+      overflow: hidden;
+      margin-bottom: 10pt;
+    }
+    .summary-box table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+    .summary-box td {
+      padding: 7pt 14pt;
+      border-bottom: 0.5pt solid #e2e8f0;
+    }
+    .summary-box td:last-child {
+      text-align: right;
+      font-family: "Courier New", Courier, monospace;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .summary-box .grand-total td {
+      background: #1a4f91; color: #fff;
+      font-weight: 700; font-size: 10pt; border-bottom: none;
+    }
+    .summary-box .grand-total td:last-child { color: #fff; }
+    .summary-box .adjustment-row td { color: #dc2626; }
+    .summary-box .adjustment-row td:last-child { color: #dc2626; }
+
+    /* ---- Policy sources ---- */
+    .policy-sources {
+      background: #f1f5f9;
+      border: 0.5pt solid #e2e8f0;
+      border-radius: 4pt;
+      padding: 8pt 12pt;
+      margin-bottom: 14pt;
+    }
+    .policy-sources-title {
+      font-size: 7.5pt; font-weight: 700; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.4pt; margin-bottom: 4pt;
+    }
+    .policy-source-item {
+      font-size: 8pt; color: #475569;
+      padding: 2pt 0 2pt 8pt;
+      border-left: 2pt solid #93c5fd;
+      margin-bottom: 3pt;
+    }
+
+    /* ---- Review banner ---- */
+    .review-banner {
+      background: #fef2f2;
+      border: 1pt solid #fca5a5;
+      border-radius: 4pt;
+      padding: 8pt 12pt;
+      font-size: 8.5pt;
+      color: #991b1b;
+      margin-bottom: 10pt;
+    }
+
+    /* ---- Signatures ---- */
+    .signature-section { margin-top: 24pt; page-break-inside: avoid; }
+
+    .certification-text {
+      background: #f8fafc;
+      border: 0.5pt solid #e2e8f0;
+      border-radius: 4pt;
+      padding: 10pt 12pt;
+      font-size: 8pt; color: #475569;
+      line-height: 1.6; margin-bottom: 18pt;
+      font-style: italic;
+    }
+
+    .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30pt; }
+
+    .sig-label {
+      font-size: 7.5pt; font-weight: 700; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.4pt;
+      margin-bottom: 20pt;
+    }
+    .sig-line { border-bottom: 1pt solid #334155; margin-bottom: 5pt; }
+    .sig-name { font-size: 8pt; color: #475569; }
+
+    .no-break { page-break-inside: avoid; }
+    .amount { font-family: "Courier New", Courier, monospace; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="report-header">
+  <div>
+    <div class="brand-badge">ExpenseAI</div>
+    <div class="report-title">Expense Reimbursement Report</div>
+    <div class="report-subtitle">{{ report.trip_purpose }}</div>
+  </div>
+  <div class="header-right">
+    <div><strong>Generated:</strong> {{ summary.generated_at }}</div>
+    <div style="margin-top:4pt;font-size:8pt;color:#94a3b8">Department: {{ report.department }}</div>
+  </div>
+</div>
+
+<!-- SUBMITTER INFO -->
+<div class="info-grid no-break">
+  <div class="info-label">Submitter</div>
+  <div class="info-value">{{ report.submitter_name }}</div>
+  <div class="info-label">Email</div>
+  <div class="info-value">{{ report.submitter_email }}</div>
+
+  <div class="info-label">Department</div>
+  <div class="info-value">{{ report.department }}</div>
+  <div class="info-label">Trip Purpose</div>
+  <div class="info-value">{{ report.trip_purpose }}</div>
+
+  <div class="info-label">Trip Dates</div>
+  <div class="info-value">{{ report.trip_start_date }} – {{ report.trip_end_date }}</div>
+  <div class="info-label">Destination</div>
+  <div class="info-value">{{ report.destination_city }}, {{ report.destination_state }}</div>
+</div>
+
+<!-- REVIEW BANNER -->
+{% if summary.items_requiring_review > 0 %}
+<div class="review-banner no-break">
+  <strong>&#9888; Manager Review Required:</strong>
+  &nbsp;{{ summary.items_requiring_review }} item(s) are flagged for manager review.
+</div>
+{% endif %}
+
+<!-- ITEMIZED EXPENSES -->
+<h2>Itemized Expenses</h2>
+<table class="expense-table">
+  <thead>
+    <tr>
+      <th style="width:22pt">#</th>
+      <th style="width:58pt">Date</th>
+      <th style="width:58pt">Category</th>
+      <th>Vendor / Route</th>
+      <th class="right" style="width:64pt">Claimed</th>
+      <th class="right" style="width:64pt">Approved</th>
+      <th class="center" style="width:56pt">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td style="color:#94a3b8;font-size:8pt">{{ item.num }}</td>
+      <td style="font-size:8pt;color:#475569">{{ item.date }}</td>
+      <td>{{ item.category }}</td>
+      <td>{{ item.vendor }}</td>
+      <td class="right amount">${{ "%.2f"|format(item.claimed|float) }}</td>
+      <td class="right amount"
+          style="{% if item.approved|float < item.claimed|float %}color:#d97706;font-weight:600{% else %}color:#15803d;font-weight:600{% endif %}">
+        ${{ "%.2f"|format(item.approved|float) }}
+      </td>
+      <td class="center">
+        {% if item.requires_review %}
+          <span class="badge badge-review">Review</span>
+        {% elif not item.is_compliant or item.approved < item.claimed %}
+          <span class="badge badge-adjusted">Adjusted</span>
+        {% else %}
+          <span class="badge badge-ok">Approved</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    <tr class="total-row">
+      <td colspan="4" style="text-align:right;padding-right:10pt">TOTALS</td>
+      <td class="right amount">${{ "%.2f"|format(summary.total_claimed|float) }}</td>
+      <td class="right amount">${{ "%.2f"|format(summary.total_approved|float) }}</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="legend">
+  Legend:
+  <span class="badge badge-ok">Approved</span> Within policy &nbsp;|&nbsp;
+  <span class="badge badge-adjusted">Adjusted</span> Reduced to policy limit &nbsp;|&nbsp;
+  <span class="badge badge-review">Review</span> Requires manager review
+</div>
+
+<!-- POLICY COMPLIANCE NOTES -->
+{% set adjusted_items = items | selectattr('notes') | list %}
+{% if adjusted_items %}
+<h2>Policy Compliance Notes</h2>
+{% for item in adjusted_items %}
+{% if item.notes %}
+<div class="policy-item no-break
+  {% if item.requires_review %}review
+  {% elif not item.is_compliant or item.approved < item.claimed %}adjusted
+  {% endif %}">
+  <div class="pi-title">
+    Item {{ item.num }} — {{ item.category }}{% if item.vendor and item.vendor != '—' %} · {{ item.vendor }}{% endif %}
+    {% if item.approved < item.claimed %}(Claimed: ${{ "%.2f"|format(item.claimed|float) }} → Approved: ${{ "%.2f"|format(item.approved|float) }}){% endif %}
+  </div>
+  {% if item.policy_source %}<div class="pi-source">Policy: {{ item.policy_source }}</div>{% endif %}
+  <div class="pi-note">{{ item.notes }}</div>
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+
+<!-- REIMBURSEMENT SUMMARY -->
+<h2>Reimbursement Summary</h2>
+<div class="summary-box no-break">
+  <table>
+    <tr>
+      <td>Total Amount Claimed</td>
+      <td>${{ "%.2f"|format(summary.total_claimed|float) }}</td>
+    </tr>
+    {% if summary.total_adjusted > 0 %}
+    <tr class="adjustment-row">
+      <td>Total Policy Adjustments</td>
+      <td>– ${{ "%.2f"|format(summary.total_adjusted|float) }}</td>
+    </tr>
+    {% endif %}
+    <tr class="grand-total">
+      <td><strong>Total Approved for Reimbursement</strong></td>
+      <td><strong>${{ "%.2f"|format(summary.total_approved|float) }}</strong></td>
+    </tr>
+  </table>
+</div>
+
+{% if summary.policy_sources_referenced %}
+<div class="policy-sources no-break">
+  <div class="policy-sources-title">Policy Sources Consulted</div>
+  {% for src in summary.policy_sources_referenced %}
+  <div class="policy-source-item">{{ src }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- CERTIFICATION & SIGNATURES -->
+<div class="signature-section no-break">
+  <h2>Certification &amp; Approval</h2>
+  <div class="certification-text">
+    I certify that the expenses listed above were actually incurred by me in the
+    performance of official business, that the amounts claimed are correct, and that
+    receipts are attached for all applicable expenses. I further certify that I have
+    not been reimbursed for these expenses from any other source and that all expenses
+    comply with applicable federal travel regulations and organizational policy.
+  </div>
+
+  <div class="sig-grid">
+    <div>
+      <div class="sig-label">Employee / Submitter</div>
+      <div class="sig-line">&nbsp;</div>
+      <div class="sig-name">{{ report.submitter_name }}</div>
+      <div class="sig-label" style="margin-top:18pt">Date</div>
+      <div class="sig-line">&nbsp;</div>
+    </div>
+    <div>
+      <div class="sig-label">Manager / Approver</div>
+      <div class="sig-line">&nbsp;</div>
+      <div class="sig-name">&nbsp;</div>
+      <div class="sig-label" style="margin-top:18pt">Date</div>
+      <div class="sig-line">&nbsp;</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

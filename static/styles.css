@@ -1,0 +1,280 @@
+/* ============================================================
+   Expense Report PDF Styles (WeasyPrint print-optimized CSS)
+   ============================================================ */
+
+@page {
+    size: Letter;
+    margin: 1.8cm 2cm;
+    @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 8pt;
+        color: #888;
+    }
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    color: #1a1a1a;
+    line-height: 1.45;
+}
+
+/* ---- Header ---- */
+.report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2.5pt solid #1a4f91;
+    padding-bottom: 10pt;
+    margin-bottom: 18pt;
+}
+
+.report-header h1 {
+    font-size: 18pt;
+    color: #1a4f91;
+    letter-spacing: -0.5pt;
+}
+
+.report-header .meta {
+    font-size: 8.5pt;
+    color: #555;
+    text-align: right;
+    line-height: 1.7;
+}
+
+/* ---- Submitter info grid ---- */
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4pt 20pt;
+    background: #f5f7fa;
+    border-radius: 4pt;
+    padding: 10pt 14pt;
+    margin-bottom: 20pt;
+    font-size: 9.5pt;
+}
+
+.info-grid .label {
+    font-weight: bold;
+    color: #444;
+}
+
+.info-grid .value {
+    color: #111;
+}
+
+/* ---- Section headings ---- */
+h2 {
+    font-size: 12pt;
+    color: #1a4f91;
+    border-bottom: 1pt solid #c8d8f0;
+    padding-bottom: 4pt;
+    margin-bottom: 10pt;
+    margin-top: 22pt;
+}
+
+/* ---- Expense table ---- */
+.expense-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin-bottom: 6pt;
+}
+
+.expense-table th {
+    background: #1a4f91;
+    color: #fff;
+    text-align: left;
+    padding: 5pt 7pt;
+    font-weight: 600;
+    font-size: 8.5pt;
+    letter-spacing: 0.3pt;
+}
+
+.expense-table th.right,
+.expense-table td.right {
+    text-align: right;
+}
+
+.expense-table th.center,
+.expense-table td.center {
+    text-align: center;
+}
+
+.expense-table tbody tr:nth-child(even) {
+    background: #f0f5ff;
+}
+
+.expense-table tbody tr:hover {
+    background: #e4eeff;
+}
+
+.expense-table td {
+    padding: 5pt 7pt;
+    border-bottom: 0.5pt solid #dde3ef;
+    vertical-align: middle;
+}
+
+.expense-table .total-row {
+    background: #e8f0fb !important;
+    font-weight: bold;
+    border-top: 1.5pt solid #1a4f91;
+}
+
+.expense-table .total-row td {
+    border-bottom: none;
+    font-size: 9.5pt;
+}
+
+/* Status badges */
+.badge {
+    display: inline-block;
+    padding: 1pt 5pt;
+    border-radius: 3pt;
+    font-size: 8pt;
+    font-weight: bold;
+    letter-spacing: 0.2pt;
+}
+
+.badge-ok {
+    background: #d4edda;
+    color: #155724;
+}
+
+.badge-adjusted {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.badge-review {
+    background: #fde2e2;
+    color: #842029;
+}
+
+/* ---- Policy notes ---- */
+.policy-notes {
+    margin-bottom: 24pt;
+}
+
+.policy-item {
+    border-left: 3pt solid #1a4f91;
+    padding: 6pt 10pt;
+    margin-bottom: 8pt;
+    background: #f9fbff;
+    font-size: 9pt;
+}
+
+.policy-item.adjusted {
+    border-left-color: #e0a800;
+    background: #fffcf0;
+}
+
+.policy-item .pi-title {
+    font-weight: bold;
+    color: #1a4f91;
+    margin-bottom: 2pt;
+}
+
+.policy-item.adjusted .pi-title {
+    color: #856404;
+}
+
+.policy-item .pi-source {
+    font-size: 8pt;
+    color: #666;
+    margin-bottom: 2pt;
+}
+
+.policy-item .pi-note {
+    color: #333;
+}
+
+/* ---- Summary box ---- */
+.summary-box {
+    border: 1.5pt solid #1a4f91;
+    border-radius: 4pt;
+    padding: 12pt 16pt;
+    margin-bottom: 22pt;
+}
+
+.summary-box table {
+    width: 100%;
+    font-size: 10pt;
+}
+
+.summary-box td:first-child {
+    color: #444;
+    font-weight: 600;
+    padding-bottom: 4pt;
+}
+
+.summary-box td:last-child {
+    text-align: right;
+    font-size: 11pt;
+    font-weight: bold;
+    color: #1a4f91;
+}
+
+.summary-box .grand-total td {
+    font-size: 13pt;
+    border-top: 1pt solid #1a4f91;
+    padding-top: 6pt;
+    color: #1a4f91;
+}
+
+/* ---- Signature block ---- */
+.signature-section {
+    margin-top: 30pt;
+    page-break-inside: avoid;
+}
+
+.certification-text {
+    font-size: 8.5pt;
+    color: #555;
+    border: 0.5pt solid #ccc;
+    padding: 8pt 10pt;
+    background: #fafafa;
+    margin-bottom: 18pt;
+    font-style: italic;
+}
+
+.sig-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12pt 30pt;
+}
+
+.sig-block .sig-label {
+    font-size: 8.5pt;
+    color: #555;
+    margin-bottom: 18pt;
+}
+
+.sig-block .sig-line {
+    border-bottom: 1pt solid #333;
+    margin-bottom: 4pt;
+}
+
+.sig-block .sig-name {
+    font-size: 8.5pt;
+    color: #888;
+}
+
+/* ---- Legend ---- */
+.legend {
+    font-size: 8pt;
+    color: #666;
+    margin-top: 4pt;
+}
+
+/* ---- Page break control ---- */
+.policy-notes,
+.signature-section {
+    page-break-before: auto;
+}

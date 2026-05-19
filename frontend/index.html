@@ -1,0 +1,2385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ExpenseAI — Automated Expense Reports</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6' fill='%233b82f6'/><path d='M13 2L3 14h9l-1 8 10-12h-9l1-8z' fill='white'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ============================================================
+       DESIGN TOKENS — Dark Mode OLED + Glassmorphism
+       ============================================================ */
+    :root {
+      --bg:           #020617;
+      --surface:      #0f172a;
+      --surface-2:    rgba(255,255,255,0.04);
+      --surface-hover:rgba(255,255,255,0.07);
+      --glass-bg:     rgba(15,23,42,0.7);
+      --glass-border: rgba(255,255,255,0.12);
+      --glass-border-hover: rgba(59,130,246,0.5);
+
+      --accent:       #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-glow:  rgba(59,130,246,0.25);
+      --green:        #22c55e;
+      --green-glow:   rgba(34,197,94,0.2);
+      --amber:        #f59e0b;
+      --red:          #ef4444;
+      --red-glow:     rgba(239,68,68,0.2);
+
+      --text:         #f8fafc;
+      --text-2:       #cbd5e1;
+      --text-muted:   #64748b;
+      --border:       #1e293b;
+
+      --radius-sm:    6px;
+      --radius:       12px;
+      --radius-lg:    16px;
+      --radius-xl:    20px;
+
+      --shadow-glass: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+      --shadow-card:  0 4px 24px rgba(0,0,0,0.3);
+      --shadow-glow:  0 0 24px var(--accent-glow);
+
+      --transition:   cubic-bezier(0.16,1,0.3,1);
+      --duration:     220ms;
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    [hidden] { display: none !important; }
+    ::selection { background: var(--accent-glow); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 99px; }
+
+    /* ============================================================
+       AMBIENT BLOBS (background atmosphere)
+       ============================================================ */
+    .ambient {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+    }
+    .blob {
+      position: absolute; border-radius: 50%;
+      filter: blur(80px); opacity: 0.07;
+      animation: blobFloat 18s ease-in-out infinite;
+    }
+    .blob-1 { width: 500px; height: 500px; background: #3b82f6; top: -100px; left: -100px; animation-delay: 0s; }
+    .blob-2 { width: 400px; height: 400px; background: #8b5cf6; top: 40%; right: -80px; animation-delay: -6s; }
+    .blob-3 { width: 350px; height: 350px; background: #22c55e; bottom: -50px; left: 30%; animation-delay: -12s; }
+    @keyframes blobFloat {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      33% { transform: translate(30px,-20px) scale(1.05); }
+      66% { transform: translate(-20px,30px) scale(0.97); }
+    }
+    @media (prefers-reduced-motion: reduce) { .blob { animation: none; } }
+
+    /* ============================================================
+       NAVBAR
+       ============================================================ */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 60px;
+      background: rgba(2,6,23,0.85);
+      border-bottom: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      display: flex; align-items: center;
+      padding: 0 24px;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px; flex: 1;
+    }
+    .nav-logo {
+      display: flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px;
+      background: var(--accent);
+      border-radius: 8px;
+      box-shadow: 0 0 16px var(--accent-glow);
+      flex-shrink: 0;
+    }
+    .nav-logo svg { width: 18px; height: 18px; color: #fff; }
+    .nav-title { font-size: 1rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+    .nav-tagline {
+      font-size: 0.72rem; color: var(--text-muted); font-weight: 400;
+      display: none;
+    }
+    @media (min-width: 640px) { .nav-tagline { display: block; margin-left: 6px; } }
+    .nav-actions { display: flex; align-items: center; gap: 10px; }
+
+    /* ============================================================
+       BUTTONS
+       ============================================================ */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 9px 18px; border-radius: var(--radius-sm);
+      font-size: 0.875rem; font-weight: 600; font-family: inherit;
+      border: none; cursor: pointer;
+      transition: all var(--duration) var(--transition);
+      white-space: nowrap; text-decoration: none;
+      position: relative; overflow: hidden;
+    }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 0 28px var(--accent-glow); }
+    .btn-secondary {
+      background: var(--surface-2); color: var(--text-2);
+      border: 1px solid var(--glass-border);
+    }
+    .btn-secondary:hover { background: var(--surface-hover); border-color: rgba(255,255,255,0.15); }
+    .btn-green {
+      background: rgba(34,197,94,0.15); color: var(--green);
+      border: 1px solid rgba(34,197,94,0.25);
+    }
+    .btn-green:hover { background: rgba(34,197,94,0.22); }
+    .btn-danger {
+      background: rgba(239,68,68,0.1); color: var(--red);
+      border: 1px solid rgba(239,68,68,0.2);
+    }
+    .btn-danger:hover { background: rgba(239,68,68,0.18); }
+    .btn-sm { padding: 6px 13px; font-size: 0.8rem; }
+    .btn-icon { padding: 8px; border-radius: var(--radius-sm); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+    /* ============================================================
+       GLASS CARD
+       ============================================================ */
+    .card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: border-color var(--duration) var(--transition);
+    }
+    .card:hover { border-color: rgba(255,255,255,0.18); }
+    .card-title {
+      font-size: 1rem; font-weight: 600; color: var(--text);
+      margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+    }
+    .card-title svg { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+
+    /* ============================================================
+       LAYOUT
+       ============================================================ */
+    .main-wrap {
+      position: relative; z-index: 1;
+      padding-top: 80px;
+      padding-bottom: 60px;
+      min-height: 100dvh;
+    }
+    .container {
+      max-width: 900px; margin: 0 auto; padding: 0 20px;
+    }
+
+    /* ============================================================
+       STEP INDICATOR
+       ============================================================ */
+    .steps-wrap {
+      display: flex; gap: 6px; margin-bottom: 28px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
+      padding: 6px;
+      backdrop-filter: blur(20px);
+    }
+    .step-pill {
+      flex: 1; padding: 10px 8px; border-radius: 12px;
+      text-align: center; font-size: 0.78rem; font-weight: 500;
+      color: var(--text-muted); cursor: default;
+      transition: all var(--duration) var(--transition);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .step-pill.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 20px var(--accent-glow);
+      font-weight: 600;
+    }
+    .step-pill.done {
+      background: rgba(34,197,94,0.12);
+      color: var(--green);
+      border: 1px solid rgba(34,197,94,0.2);
+    }
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
+    }
+    .step-pill.active .step-num { background: rgba(255,255,255,0.25); }
+    .step-pill.done .step-num { background: rgba(34,197,94,0.25); }
+    .step-label { display: none; }
+    @media (min-width: 500px) { .step-label { display: inline; } }
+
+    /* ============================================================
+       FORM ELEMENTS
+       ============================================================ */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label {
+      font-size: 0.78rem; font-weight: 600; color: var(--text-2);
+      letter-spacing: 0.02em; text-transform: uppercase;
+    }
+    .required-star { color: var(--red); margin-left: 2px; }
+    input, select, textarea {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: var(--radius-sm);
+      padding: 10px 13px;
+      font-size: 0.9rem; font-family: inherit;
+      color: var(--text);
+      transition: border-color var(--duration) var(--transition), box-shadow var(--duration) var(--transition);
+      width: 100%;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    input::placeholder, textarea::placeholder { color: var(--text-muted); }
+    select option { background: var(--surface); color: var(--text); }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+
+    /* ============================================================
+       SECTION DIVIDER
+       ============================================================ */
+    .section-gap { height: 16px; }
+    .btn-row {
+      display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;
+    }
+
+    /* ============================================================
+       POLICY PREVIEW BOX
+       ============================================================ */
+    .policy-preview {
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid rgba(59,130,246,0.25);
+      background: rgba(59,130,246,0.06);
+    }
+    .policy-preview-header {
+      padding: 10px 14px;
+      background: rgba(59,130,246,0.1);
+      font-size: 0.78rem; font-weight: 600; color: var(--accent);
+      display: flex; align-items: center; gap: 7px;
+    }
+    .policy-preview-body { padding: 14px; }
+    .rate-grid { display: flex; gap: 14px; flex-wrap: wrap; }
+    .rate-card {
+      flex: 1; min-width: 80px;
+      background: rgba(255,255,255,0.04);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .rate-value { font-size: 1.15rem; font-weight: 700; color: var(--text); font-family: 'Fira Code', monospace; }
+    .rate-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; }
+    .rate-source { font-size: 0.7rem; color: var(--text-muted); margin-top: 10px; }
+
+    /* Skeleton loader */
+    .skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-line { height: 12px; border-radius: 4px; margin-bottom: 8px; }
+
+    /* ============================================================
+       COLLAPSIBLE
+       ============================================================ */
+    .collapsible-header {
+      cursor: pointer; display: flex; align-items: center; gap: 8px;
+      user-select: none; padding: 14px 0; border-top: 1px solid var(--glass-border);
+      margin-top: 16px;
+    }
+    .collapsible-header:hover .caret-icon { color: var(--accent); }
+    .caret-icon {
+      margin-left: auto; color: var(--text-muted); transition: transform var(--duration) var(--transition);
+    }
+    .caret-icon.open { transform: rotate(180deg); }
+    .collapsible-body { overflow: hidden; }
+
+    /* ============================================================
+       MILEAGE LIST
+       ============================================================ */
+    .mileage-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .mileage-entry {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);
+      border-radius: var(--radius-sm); padding: 10px 14px;
+      font-size: 0.84rem; color: var(--text-2);
+      animation: slideIn 0.2s var(--transition);
+    }
+    @keyframes slideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+    .mileage-entry span { flex: 1; }
+
+    /* ============================================================
+       DROP ZONE
+       ============================================================ */
+    .drop-zone {
+      border: 2px dashed rgba(255,255,255,0.2);
+      border-radius: var(--radius-lg);
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--duration) var(--transition);
+      background: var(--surface-2);
+      position: relative;
+    }
+    .drop-zone input { display: none; }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(59,130,246,0.06);
+      box-shadow: 0 0 32px var(--accent-glow);
+    }
+    .drop-icon {
+      width: 52px; height: 52px; margin: 0 auto 14px;
+      background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent);
+    }
+    .drop-icon svg { width: 26px; height: 26px; }
+    .drop-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 5px; }
+    .drop-sub { font-size: 0.8rem; color: var(--text-muted); }
+    .file-badges { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+    .file-badge {
+      padding: 3px 10px; border-radius: 99px; font-size: 0.72rem; font-weight: 600;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border);
+      color: var(--text-muted);
+    }
+
+    /* File list */
+    .file-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .file-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface-2); border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      animation: slideIn 0.2s var(--transition);
+    }
+    .file-item-icon { flex-shrink: 0; color: var(--accent); }
+    .file-item-icon svg { width: 20px; height: 20px; }
+    .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+    .file-size { color: var(--text-muted); font-size: 0.78rem; flex-shrink: 0; font-family: 'Fira Code', monospace; }
+    .file-category-select {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+      border-radius: 4px; padding: 4px 8px; font-size: 0.78rem; color: var(--text-2);
+      cursor: pointer; flex-shrink: 0; font-family: inherit;
+      width: auto; max-width: 130px;
+    }
+    .file-category-select:focus { outline: none; border-color: var(--accent); }
+    .file-name { min-width: 0; }
+
+    /* ============================================================
+       PROGRESS BAR
+       ============================================================ */
+    .progress-outer {
+      background: rgba(255,255,255,0.06); border-radius: 99px;
+      height: 8px; overflow: hidden; margin: 18px 0 8px;
+      position: relative;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent) 0%, #60a5fa 50%, var(--green) 100%);
+      border-radius: 99px;
+      transition: width 0.6s var(--transition);
+      position: relative;
+    }
+    .progress-bar::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      animation: progressShine 1.5s ease infinite;
+    }
+    @keyframes progressShine {
+      0% { transform: translateX(-100%); } 100% { transform: translateX(100%); }
+    }
+    .progress-label { font-size: 0.8rem; color: var(--text-2); font-family: 'Fira Code', monospace; margin-top: 4px; }
+
+    /* ============================================================
+       TERMINAL LOG
+       ============================================================ */
+    .terminal {
+      background: #020c1b;
+      border: 1px solid rgba(59,130,246,0.15);
+      border-radius: var(--radius);
+      padding: 16px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      min-height: 120px; max-height: 200px;
+      overflow-y: auto;
+      margin-top: 16px;
+      color: #64748b;
+    }
+    .terminal-line { padding: 1px 0; }
+    .terminal-line.info { color: #4ade80; }
+    .terminal-line.warn { color: var(--amber); }
+    .terminal-line.error { color: var(--red); }
+    .terminal-line .ts { color: #334155; margin-right: 6px; }
+
+    /* ============================================================
+       PROCESSING STATUS CARDS
+       ============================================================ */
+    .status-stages {
+      display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;
+    }
+    .stage-card {
+      flex: 1; min-width: 130px;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--glass-border);
+      background: var(--surface-2);
+      font-size: 0.8rem; color: var(--text-muted);
+      display: flex; align-items: center; gap: 8px;
+      transition: all 0.3s var(--transition);
+    }
+    .stage-card.active {
+      border-color: rgba(59,130,246,0.4);
+      background: rgba(59,130,246,0.08);
+      color: var(--text);
+    }
+    .stage-card.done {
+      border-color: rgba(34,197,94,0.3);
+      background: rgba(34,197,94,0.06);
+      color: var(--green);
+    }
+    .stage-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: var(--text-muted);
+    }
+    .stage-card.active .stage-dot { background: var(--accent); animation: pulse 1.5s infinite; }
+    .stage-card.done .stage-dot { background: var(--green); animation: none; }
+    @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(59,130,246,0.4)} 50%{opacity:0.8;box-shadow:0 0 0 5px rgba(59,130,246,0)} }
+
+    /* ============================================================
+       SUMMARY CARDS
+       ============================================================ */
+    .results-top {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 560px) {
+      .results-top { grid-template-columns: 1fr; }
+    }
+    .summary-cards { display: flex; flex-direction: column; gap: 10px; }
+    .summary-card {
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--glass-border);
+      background: var(--surface-2);
+      display: flex; align-items: center; gap: 12px;
+      transition: border-color var(--duration) var(--transition);
+    }
+    .summary-card:hover { border-color: rgba(255,255,255,0.18); }
+    .summary-card-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .summary-card-icon svg { width: 18px; height: 18px; }
+    .summary-card-icon.blue { background: rgba(59,130,246,0.15); color: var(--accent); }
+    .summary-card-icon.green { background: rgba(34,197,94,0.15); color: var(--green); }
+    .summary-card-icon.red { background: rgba(239,68,68,0.15); color: var(--red); }
+    .summary-card-icon.amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+    .summary-card-body { flex: 1; min-width: 0; }
+    .summary-card-amount {
+      font-size: 1.3rem; font-weight: 700; font-family: 'Fira Code', monospace;
+      color: var(--text); letter-spacing: -0.02em; line-height: 1.2;
+    }
+    .summary-card-label { font-size: 0.73rem; color: var(--text-muted); margin-top: 3px; letter-spacing: 0.01em; }
+
+    /* Chart box */
+    .chart-box {
+      width: 190px;
+      background: var(--surface-2); border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg); padding: 16px;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    @media (max-width: 560px) {
+      .chart-box { width: 100%; flex-direction: row; justify-content: center; gap: 20px; }
+    }
+    .chart-title { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .chart-canvas-wrap { width: 140px; height: 140px; }
+
+    /* ============================================================
+       EXPENSE TABLE
+       ============================================================ */
+    .table-wrap {
+      overflow-x: auto; margin: -4px; padding: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: #334155 transparent;
+    }
+    @media (max-width: 640px) {
+      .table-wrap {
+        background-image: linear-gradient(to right, transparent 85%, rgba(2,6,23,0.9) 100%);
+        background-attachment: local, scroll;
+      }
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; min-width: 600px; }
+    thead tr { border-bottom: 1px solid var(--glass-border); }
+    th {
+      padding: 10px 12px; text-align: left;
+      font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    th.right, td.right { text-align: right; }
+    td { padding: 11px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-2); }
+    tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background var(--duration) var(--transition); }
+    tbody tr:hover td { background: var(--surface-2); }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 9px; border-radius: 99px;
+      font-size: 0.72rem; font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-ok { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+    .badge-adj { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+    .badge-rev { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+    /* Receipt preview icon */
+    .receipt-thumb {
+      width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+      background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--accent); transition: all var(--duration) var(--transition);
+    }
+    .receipt-thumb:hover { background: rgba(59,130,246,0.2); box-shadow: 0 0 12px var(--accent-glow); }
+    .receipt-thumb svg { width: 14px; height: 14px; }
+
+    /* Expandable notes row */
+    .notes-toggle {
+      font-size: 0.72rem; color: var(--text-muted); cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px;
+      transition: color var(--duration) var(--transition);
+    }
+    .notes-toggle:hover { color: var(--accent); }
+    .notes-row td {
+      padding: 0 12px;
+      font-size: 0.8rem; color: var(--text-muted);
+      background: rgba(59,130,246,0.03);
+    }
+    .notes-content {
+      padding: 12px 0;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      line-height: 1.7;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    .notes-content .policy-src { color: var(--accent); font-size: 0.75rem; margin-bottom: 4px; }
+
+    /* ============================================================
+       ALERT
+       ============================================================ */
+    .alert {
+      padding: 12px 16px; border-radius: var(--radius-sm);
+      font-size: 0.85rem; display: flex; align-items: center; gap: 8px;
+      animation: slideIn 0.2s var(--transition);
+    }
+    .alert svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .alert-error { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+    .alert-info { background: rgba(59,130,246,0.1); color: var(--accent); border: 1px solid rgba(59,130,246,0.2); }
+    .alert-success { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+
+    /* ============================================================
+       MODAL
+       ============================================================ */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(2,6,23,0.8);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.15s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+      width: 100%; max-width: 500px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      animation: modalIn 0.22s var(--transition);
+    }
+    @keyframes modalIn {
+      from { opacity:0; transform: scale(0.94) translateY(8px); }
+      to { opacity:1; transform: scale(1) translateY(0); }
+    }
+    .modal-title {
+      font-size: 1.05rem; font-weight: 700; color: var(--text);
+      margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+    }
+    .modal-title svg { width: 20px; height: 20px; color: var(--accent); }
+
+    /* ============================================================
+       LIGHTBOX
+       ============================================================ */
+    .lightbox-overlay {
+      position: fixed; inset: 0; z-index: 800;
+      background: rgba(0,0,0,0.92);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.15s ease;
+    }
+    .lightbox-img {
+      max-width: 90vw; max-height: 90vh;
+      border-radius: var(--radius-lg);
+      box-shadow: 0 32px 80px rgba(0,0,0,0.8);
+      object-fit: contain;
+    }
+    .lightbox-close {
+      position: absolute; top: 20px; right: 20px;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+      color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background var(--duration) var(--transition);
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,0.2); }
+    .lightbox-close svg { width: 18px; height: 18px; }
+
+    /* ============================================================
+       HISTORY PANEL
+       ============================================================ */
+    .history-panel {
+      position: fixed; top: 0; right: 0; bottom: 0; z-index: 400;
+      width: 420px; max-width: 95vw;
+      background: var(--surface);
+      border-left: 1px solid var(--glass-border);
+      box-shadow: -16px 0 60px rgba(0,0,0,0.5);
+      display: flex; flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.3s var(--transition);
+    }
+    .history-panel.open { transform: translateX(0); }
+    .history-header {
+      display: flex; align-items: center; padding: 20px 20px;
+      border-bottom: 1px solid var(--glass-border);
+      gap: 12px;
+    }
+    .history-header h2 { font-size: 1rem; font-weight: 700; flex: 1; }
+    .history-body { flex: 1; overflow-y: auto; padding: 12px; }
+    .history-item {
+      padding: 14px 16px; border-radius: var(--radius);
+      border: 1px solid var(--glass-border);
+      background: var(--surface-2);
+      margin-bottom: 8px;
+      transition: all var(--duration) var(--transition);
+      cursor: default;
+    }
+    .history-item:hover { border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.05); }
+    .history-item-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .history-item-name { font-weight: 600; font-size: 0.88rem; flex: 1; }
+    .history-item-meta { font-size: 0.77rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+    .history-item-amount {
+      font-family: 'Fira Code', monospace; font-size: 0.85rem; font-weight: 600; color: var(--green);
+    }
+    .history-backdrop {
+      position: fixed; inset: 0; z-index: 399; background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* ============================================================
+       CHECKBOX CUSTOM
+       ============================================================ */
+    .checkbox-wrap {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      padding: 8px 0; font-size: 0.88rem; color: var(--text-2);
+    }
+    .checkbox-wrap input[type="checkbox"] { display: none; }
+    .custom-checkbox {
+      width: 18px; height: 18px; border-radius: 4px;
+      border: 2px solid var(--glass-border);
+      background: var(--surface-2);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all var(--duration) var(--transition);
+    }
+    .checkbox-wrap input:checked + .custom-checkbox {
+      background: var(--accent); border-color: var(--accent);
+    }
+    .custom-checkbox svg { width: 11px; height: 11px; color: #fff; display: none; }
+    .checkbox-wrap input:checked + .custom-checkbox svg { display: block; }
+
+    @media (max-width: 420px) { .collapsible-opt-tag { display: none; } }
+
+    /* ============================================================
+       DIVIDER
+       ============================================================ */
+    .divider { height: 1px; background: var(--glass-border); margin: 20px 0; }
+
+    /* Spinner */
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Ambient blobs -->
+<div class="ambient" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<!-- ================================================================
+     NAVBAR
+     ================================================================ -->
+<nav class="navbar" role="banner">
+  <div class="nav-brand">
+    <div class="nav-logo" aria-hidden="true">
+      <!-- Lightning bolt SVG -->
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    </div>
+    <span class="nav-title">ExpenseAI</span>
+    <span class="nav-tagline">— Powered by Claude + Live Policy Search</span>
+  </div>
+  <div class="nav-actions">
+    <button class="btn btn-secondary btn-sm" onclick="openHistory()" aria-label="View report history">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M12 2a10 10 0 100 20A10 10 0 0012 2z"/></svg>
+      History
+    </button>
+  </div>
+</nav>
+
+<!-- ================================================================
+     MAIN CONTENT
+     ================================================================ -->
+<div class="main-wrap">
+<div class="container">
+
+  <!-- Step Indicator -->
+  <div class="steps-wrap" role="navigation" aria-label="Progress steps">
+    <div class="step-pill active" id="step-tab-1" role="tab" aria-selected="true">
+      <span class="step-num">1</span><span class="step-label">Trip Details</span>
+    </div>
+    <div class="step-pill" id="step-tab-2" role="tab" aria-selected="false">
+      <span class="step-num">2</span><span class="step-label">Upload Receipts</span>
+    </div>
+    <div class="step-pill" id="step-tab-3" role="tab" aria-selected="false">
+      <span class="step-num">3</span><span class="step-label">Processing</span>
+    </div>
+    <div class="step-pill" id="step-tab-4" role="tab" aria-selected="false">
+      <span class="step-num">4</span><span class="step-label">Results</span>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       STEP 1: Trip Details
+       ================================================================ -->
+  <div id="step-1">
+
+    <!-- Submitter & Trip Info -->
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M4 20c0-4 8-4 8-4s8 0 8 4"/></svg>
+        Trip &amp; Submitter Details
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="submitter_name">Full Name <span class="required-star">*</span></label>
+          <input id="submitter_name" type="text" placeholder="Jane Smith" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label for="submitter_email">Email <span class="required-star">*</span></label>
+          <input id="submitter_email" type="email" placeholder="jane@example.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="department">Department <span class="required-star">*</span></label>
+          <input id="department" type="text" placeholder="Engineering" autocomplete="organization" />
+        </div>
+        <div class="form-group full">
+          <label for="trip_purpose">Trip Purpose <span class="required-star">*</span></label>
+          <input id="trip_purpose" type="text" placeholder="NeurIPS 2024 Conference — Presentation" />
+        </div>
+        <div class="form-group">
+          <label for="trip_start_date">Start Date <span class="required-star">*</span></label>
+          <input id="trip_start_date" type="date" />
+        </div>
+        <div class="form-group">
+          <label for="trip_end_date">End Date <span class="required-star">*</span></label>
+          <input id="trip_end_date" type="date" />
+        </div>
+        <div class="form-group">
+          <label for="destination_city">Destination City <span class="required-star">*</span></label>
+          <input id="destination_city" type="text" placeholder="Chicago" />
+        </div>
+        <div class="form-group">
+          <label for="destination_state">State <span class="required-star">*</span></label>
+          <input id="destination_state" type="text" placeholder="IL" maxlength="2" style="text-transform:uppercase" />
+        </div>
+
+        <!-- Policy Preview -->
+        <div class="form-group full" id="policy-preview-wrap" hidden>
+          <div class="policy-preview">
+            <div class="policy-preview-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+              Applicable Rates for Your Destination
+            </div>
+            <div class="policy-preview-body">
+              <div id="policy-preview-loading">
+                <div class="rate-grid">
+                  <div class="rate-card skeleton skeleton-line" style="height:60px"></div>
+                  <div class="rate-card skeleton skeleton-line" style="height:60px"></div>
+                  <div class="rate-card skeleton skeleton-line" style="height:60px"></div>
+                </div>
+              </div>
+              <div id="policy-preview-rates" hidden>
+                <div class="rate-grid" id="policy-rate-grid"></div>
+                <div class="rate-source" id="policy-rate-source"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mileage Section -->
+      <div class="collapsible-header" onclick="toggleSection('mileage-body','mileage-caret')" role="button" tabindex="0" aria-expanded="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7A5 5 0 017 7h2M15 7h2a5 5 0 010 10h-2M8 12h8"/></svg>
+        <span style="font-weight:600;font-size:.9rem;">Mileage Entries</span>
+        <span style="font-size:.75rem;color:var(--text-muted);margin-left:4px">(optional)</span>
+        <svg class="caret-icon open" id="mileage-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="collapsible-body" id="mileage-body">
+        <div class="mileage-list" id="mileage-list"></div>
+        <button class="btn btn-secondary btn-sm" onclick="openMileageModal()" style="margin-top:4px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Mileage Entry
+        </button>
+      </div>
+
+      <!-- Custom Policy Limits -->
+      <div class="collapsible-header" onclick="toggleSection('policy-override-body','policy-caret')" role="button" tabindex="0" aria-expanded="false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span style="font-weight:600;font-size:.9rem;">Custom Policy Limits</span>
+        <span class="collapsible-opt-tag" style="font-size:.75rem;color:var(--text-muted);margin-left:4px">(optional override)</span>
+        <svg class="caret-icon" id="policy-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="collapsible-body" id="policy-override-body" hidden>
+        <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px">
+          Leave blank to use U.S. federal GSA/IRS standards. Fill in if your organization applies different limits.
+        </p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="po-meal-cap">Max Meals / Day ($)</label>
+            <input id="po-meal-cap" type="number" min="0" step="0.01" placeholder="e.g. 75.00" />
+          </div>
+          <div class="form-group">
+            <label for="po-hotel-cap">Max Hotel / Night ($)</label>
+            <input id="po-hotel-cap" type="number" min="0" step="0.01" placeholder="e.g. 150.00" />
+          </div>
+          <div class="form-group">
+            <label for="po-mileage-rate">Mileage Rate ($/mile)</label>
+            <input id="po-mileage-rate" type="number" min="0" step="0.001" placeholder="e.g. 0.67" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Corporate Policy Documents (RAG) -->
+      <div class="collapsible-header" onclick="toggleSection('policy-docs-body','policy-docs-caret');loadPolicyDocs()" role="button" tabindex="0" aria-expanded="false" style="margin-top:4px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span style="font-weight:600;font-size:.9rem">Corporate Policy Documents</span>
+        <span class="collapsible-opt-tag" style="font-size:.75rem;color:var(--text-muted);margin-left:4px">(optional — AI checks internal rules first)</span>
+        <svg class="caret-icon" id="policy-docs-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="collapsible-body" id="policy-docs-body" hidden>
+        <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">
+          Upload your company's expense policy PDF. Claude will consult it before checking public GSA/IRS rates.
+          When an internal rule applies, the report cites <em>Internal Policy: [Document Name]</em>.
+        </p>
+        <div id="policy-docs-list" style="margin-bottom:12px">
+          <div style="font-size:.82rem;color:var(--text-muted)">Loading…</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="openPolicyDocModal()" style="font-size:.8rem">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Upload Policy Document
+        </button>
+      </div>
+
+    </div><!-- /card -->
+
+    <div id="step1-error" class="alert alert-error" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="step1-error-msg"></span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="step1-next-btn" onclick="submitStep1()">
+        Next: Upload Receipts
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div><!-- /step-1 -->
+
+  <!-- ================================================================
+       STEP 2: Receipt Upload
+       ================================================================ -->
+  <div id="step-2" hidden>
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        Upload Receipts
+      </div>
+      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:18px">
+        Upload receipts for airfare, hotel, taxi, meals, parking, or any other expenses. Accepted: JPEG, PNG, HEIC, WebP, PDF (max 20 MB each).
+      </p>
+
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()" role="button" tabindex="0" aria-label="Upload receipt files">
+        <input type="file" id="file-input" multiple
+               accept="image/jpeg,image/png,image/heic,image/webp,application/pdf"
+               onchange="onFilesSelected(this.files)" />
+        <div class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6h.1a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+        </div>
+        <div class="drop-title">Drop receipts here or click to browse</div>
+        <div class="drop-sub">Drag and drop one or multiple files</div>
+        <div class="file-badges">
+          <span class="file-badge">JPEG</span>
+          <span class="file-badge">PNG</span>
+          <span class="file-badge">HEIC</span>
+          <span class="file-badge">WebP</span>
+          <span class="file-badge">PDF</span>
+        </div>
+      </div>
+
+      <div class="file-list" id="file-list"></div>
+    </div>
+
+    <div id="step2-error" class="alert alert-error" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="step2-error-msg"></span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goToStep(1)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" id="step2-next-btn" onclick="submitStep2()">
+        Process Expenses
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </button>
+    </div>
+  </div><!-- /step-2 -->
+
+  <!-- ================================================================
+       STEP 3: Processing
+       ================================================================ -->
+  <div id="step-3" hidden>
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 6v6l4 2"/></svg>
+        Processing Your Expenses
+      </div>
+
+      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:0">
+        Claude AI is extracting receipt data and verifying policy compliance via live web search. This typically takes 1–3 minutes.
+      </p>
+
+      <!-- Stage indicators -->
+      <div class="status-stages">
+        <div class="stage-card" id="stage-extract">
+          <div class="stage-dot"></div>
+          <span>Receipt Extraction</span>
+        </div>
+        <div class="stage-card" id="stage-verify">
+          <div class="stage-dot"></div>
+          <span>Policy Verification</span>
+        </div>
+        <div class="stage-card" id="stage-pdf">
+          <div class="stage-dot"></div>
+          <span>PDF Generation</span>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="progress-outer" role="progressbar" aria-label="Processing progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+      </div>
+      <div class="progress-label" id="progress-label">Initializing pipeline…</div>
+
+      <!-- Live log -->
+      <div class="terminal" id="process-log" role="log" aria-label="Processing log" aria-live="polite">
+        <div class="terminal-line info"><span class="ts">[00:00:00]</span> Pipeline ready. Waiting for Claude…</div>
+      </div>
+    </div>
+  </div><!-- /step-3 -->
+
+  <!-- ================================================================
+       STEP 4: Results
+       ================================================================ -->
+  <div id="step-4" hidden>
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Expense Report Ready
+      </div>
+
+      <!-- Summary + Chart -->
+      <div class="results-top">
+        <div class="summary-cards" id="summary-cards"></div>
+        <div class="chart-box" id="chart-box" hidden>
+          <div class="chart-title">By Category</div>
+          <div class="chart-canvas-wrap">
+            <canvas id="category-chart" aria-label="Expense breakdown by category"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expense Table -->
+      <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <h3 style="font-size:.9rem;font-weight:700;color:var(--text-2)">Itemized Expenses</h3>
+        <span id="results-count" style="font-size:.75rem;color:var(--text-muted)"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Vendor</th>
+              <th class="right">Claimed</th>
+              <th class="right">Approved</th>
+              <th>Status</th>
+              <th>Receipt</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Policy Notes -->
+      <div id="policy-notes-section" hidden style="margin-top:20px">
+        <div class="divider"></div>
+        <div style="font-size:.85rem;font-weight:600;color:var(--text-2);margin-bottom:12px">Policy Compliance Notes</div>
+        <div id="policy-notes-list"></div>
+      </div>
+
+    </div>
+
+    <div class="btn-row" style="flex-wrap:wrap">
+      <button class="btn btn-secondary" onclick="startOver()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+        Start New Report
+      </button>
+      <button class="btn btn-green" onclick="downloadCSV()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export CSV
+      </button>
+      <button class="btn btn-primary" onclick="downloadPDF()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Download PDF
+      </button>
+      <button class="btn btn-secondary" id="manager-review-btn" onclick="openManagerDashboard()" hidden style="border-color:var(--amber);color:var(--amber)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Manager Review (<span id="manager-review-count">0</span>)
+      </button>
+    </div>
+  </div><!-- /step-4 -->
+
+</div><!-- /container -->
+</div><!-- /main-wrap -->
+
+<!-- ================================================================
+     MILEAGE MODAL
+     ================================================================ -->
+<div class="modal-overlay" id="mileage-modal" hidden onclick="closeMileageModal(event)">
+  <div class="modal" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="mileage-modal-title">
+    <div class="modal-title" id="mileage-modal-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7A5 5 0 017 7h2M15 7h2a5 5 0 010 10h-2M8 12h8"/></svg>
+      Add Mileage Entry
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label for="m-origin">Origin</label>
+        <input id="m-origin" type="text" placeholder="123 Main St, Springfield IL" autocomplete="street-address" />
+      </div>
+      <div class="form-group full">
+        <label for="m-dest">Destination</label>
+        <input id="m-dest" type="text" placeholder="O'Hare International Airport, Chicago" />
+      </div>
+      <div class="form-group">
+        <label for="m-miles">Miles (one way)</label>
+        <input id="m-miles" type="number" min="0.1" step="0.1" placeholder="25" inputmode="decimal" />
+      </div>
+      <div class="form-group">
+        <label for="m-rate">Rate per mile (blank = IRS rate)</label>
+        <input id="m-rate" type="number" min="0.01" step="0.001" placeholder="0.67" inputmode="decimal" />
+      </div>
+      <div class="form-group full">
+        <label class="checkbox-wrap" for="m-roundtrip">
+          <input type="checkbox" id="m-roundtrip" checked />
+          <div class="custom-checkbox">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          Round trip (miles × 2)
+        </label>
+      </div>
+    </div>
+    <div id="mileage-error" class="alert alert-error" hidden style="margin-top:12px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="mileage-error-msg"></span>
+    </div>
+    <div class="btn-row" style="margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeMileageModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMileageEntry()">Add Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     LIGHTBOX MODAL
+     ================================================================ -->
+<div class="lightbox-overlay" id="lightbox" hidden onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close lightbox">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <img id="lightbox-img" class="lightbox-img" src="" alt="Receipt preview" onclick="event.stopPropagation()" />
+</div>
+
+<!-- ================================================================
+     POLICY DOCUMENT UPLOAD MODAL
+     ================================================================ -->
+<div class="modal-overlay" id="policy-doc-modal" hidden onclick="closePolicyDocModal(event)">
+  <div class="modal" onclick="event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="modal-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Upload Corporate Policy Document
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>PDF File <span style="color:var(--red)">*</span></label>
+      <input type="file" id="policy-doc-file" accept="application/pdf"
+             style="font-size:.85rem;padding:8px;background:rgba(255,255,255,0.06);border-radius:8px;border:1px solid var(--glass-border);width:100%;box-sizing:border-box" />
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label for="policy-doc-name">Display Name</label>
+      <input id="policy-doc-name" type="text" placeholder="e.g. Employee Handbook 2025" />
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label for="policy-doc-desc">Description (optional)</label>
+      <input id="policy-doc-desc" type="text" placeholder="Covers domestic travel expense rules" />
+    </div>
+    <div id="policy-doc-upload-error" class="alert alert-error" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="policy-doc-upload-error-msg"></span>
+    </div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-secondary" onclick="closePolicyDocModal()">Cancel</button>
+      <button class="btn btn-primary" id="policy-doc-upload-btn" onclick="uploadPolicyDoc()">
+        Upload &amp; Index
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     HISTORY PANEL
+     ================================================================ -->
+<div id="history-backdrop" class="history-backdrop" hidden onclick="closeHistory()"></div>
+<aside id="history-panel" class="history-panel" role="complementary" aria-label="Report history">
+  <div class="history-header">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"><path d="M12 8v4l3 3M12 2a10 10 0 100 20A10 10 0 0012 2z"/></svg>
+    <h2>Report History</h2>
+    <button class="btn btn-secondary btn-sm btn-icon" onclick="closeHistory()" aria-label="Close history">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="history-body" id="history-body">
+    <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:.85rem">Loading…</div>
+  </div>
+</aside>
+
+<!-- ================================================================
+     MANAGER REVIEW PANEL
+     ================================================================ -->
+<div id="manager-backdrop" class="history-backdrop" hidden onclick="closeManagerDashboard()"></div>
+<aside id="manager-panel" class="history-panel" style="width:min(740px,96vw)" role="dialog" aria-modal="true" aria-label="Manager review dashboard">
+  <div class="history-header">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--amber)"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    <h2>Manager Review Queue</h2>
+    <span id="manager-progress-label" style="font-size:.78rem;color:var(--text-muted);margin-left:4px"></span>
+    <button class="btn btn-secondary btn-sm btn-icon" onclick="closeManagerDashboard()" aria-label="Close manager review">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="history-body" id="manager-review-body">
+    <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:.85rem">Loading…</div>
+  </div>
+  <div style="padding:16px;border-top:1px solid var(--glass-border);display:flex;gap:10px;justify-content:flex-end;align-items:center">
+    <span id="manager-regen-hint" style="font-size:.78rem;color:var(--text-muted);margin-right:auto" hidden>All items reviewed — you can regenerate the PDF.</span>
+    <button class="btn btn-secondary" onclick="closeManagerDashboard()">Close</button>
+    <button class="btn btn-primary" id="manager-regen-btn" onclick="managerRegeneratePDF()" disabled style="opacity:.5">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Regenerate PDF
+    </button>
+  </div>
+</aside>
+
+<!-- ================================================================
+     JAVASCRIPT
+     ================================================================ -->
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let sessionId     = null;
+let selectedFiles = [];
+let mileageEntries = [];
+let fileCategoryHints = {};
+let pollTimer     = null;
+let wsConn        = null;
+let policyPreviewTimer = null;
+let lastPct       = 0;
+let categoryChart = null;
+let expandedRows  = new Set();
+
+// ============================================================
+// STEP NAVIGATION
+// ============================================================
+function goToStep(n) {
+  [1, 2, 3, 4].forEach(i => {
+    document.getElementById(`step-${i}`).hidden = (i !== n);
+    const tab = document.getElementById(`step-tab-${i}`);
+    tab.className = 'step-pill' +
+      (i === n ? ' active' : i < n ? ' done' : '');
+    tab.setAttribute('aria-selected', i === n ? 'true' : 'false');
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============================================================
+// COLLAPSIBLE SECTIONS
+// ============================================================
+function toggleSection(bodyId, caretId) {
+  const body  = document.getElementById(bodyId);
+  const caret = document.getElementById(caretId);
+  const isOpen = !body.hidden;
+  if (isOpen) {
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(() => {
+      body.style.transition = 'max-height 0.22s cubic-bezier(0.16,1,0.3,1), opacity 0.18s ease';
+      body.style.opacity = '0';
+      body.style.maxHeight = '0';
+      setTimeout(() => { body.hidden = true; body.style.transition = ''; body.style.maxHeight = ''; body.style.opacity = ''; }, 220);
+    });
+  } else {
+    body.hidden = false;
+    body.style.maxHeight = '0';
+    body.style.opacity = '0';
+    requestAnimationFrame(() => {
+      body.style.transition = 'max-height 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.2s ease';
+      body.style.maxHeight = body.scrollHeight + 'px';
+      body.style.opacity = '1';
+      setTimeout(() => { body.style.transition = ''; body.style.maxHeight = ''; body.style.opacity = ''; }, 250);
+    });
+  }
+  caret.classList.toggle('open', !isOpen);
+}
+
+// ============================================================
+// STEP 1 — Trip Details
+// ============================================================
+async function submitStep1() {
+  const btn = document.getElementById('step1-next-btn');
+  const body = {
+    submitter_name:    v('submitter_name'),
+    submitter_email:   v('submitter_email'),
+    department:        v('department'),
+    trip_purpose:      v('trip_purpose'),
+    trip_start_date:   v('trip_start_date'),
+    trip_end_date:     v('trip_end_date'),
+    destination_city:  v('destination_city'),
+    destination_state: v('destination_state').toUpperCase(),
+    mileage_entries:   mileageEntries,
+  };
+
+  // Collect org policy overrides
+  const mealCap     = parseFloat(document.getElementById('po-meal-cap').value);
+  const hotelCap    = parseFloat(document.getElementById('po-hotel-cap').value);
+  const mileageRate = parseFloat(document.getElementById('po-mileage-rate').value);
+  const overrides = {};
+  if (!isNaN(mealCap)     && mealCap > 0)     overrides.meal_daily_cap = mealCap;
+  if (!isNaN(hotelCap)    && hotelCap > 0)    overrides.hotel_nightly_cap = hotelCap;
+  if (!isNaN(mileageRate) && mileageRate > 0) overrides.mileage_rate_per_mile = mileageRate;
+  if (Object.keys(overrides).length) body.policy_overrides = overrides;
+
+  const required = ['submitter_name','submitter_email','department','trip_purpose',
+                    'trip_start_date','trip_end_date','destination_city','destination_state'];
+  const missing = required.filter(k => !body[k]);
+  if (missing.length) {
+    showError('step1-error', 'step1-error-msg', 'Please fill in all required fields.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Creating Session…';
+  try {
+    const res = await fetch('/sessions', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    sessionId = data.session_id;
+    hideError('step1-error');
+    goToStep(2);
+  } catch (err) {
+    showError('step1-error', 'step1-error-msg', `Failed to create session: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Next: Upload Receipts <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>';
+  }
+}
+
+// ============================================================
+// POLICY RATE PREVIEW
+// ============================================================
+function schedulePolicyPreview() {
+  clearTimeout(policyPreviewTimer);
+  const city  = v('destination_city');
+  const state = v('destination_state');
+  const date  = v('trip_start_date');
+  if (!city || !state || state.length < 2 || !date) return;
+  policyPreviewTimer = setTimeout(() => fetchPolicyPreview(city, state, date), 800);
+}
+
+async function fetchPolicyPreview(city, state, startDate) {
+  const wrap    = document.getElementById('policy-preview-wrap');
+  const loading = document.getElementById('policy-preview-loading');
+  const rates   = document.getElementById('policy-preview-rates');
+  wrap.hidden   = false;
+  loading.hidden = false;
+  rates.hidden   = true;
+
+  try {
+    const params = new URLSearchParams({ city, state, start_date: startDate });
+    const res  = await fetch(`/policy-preview?${params}`);
+    if (!res.ok) throw new Error('lookup failed');
+    const data = await res.json();
+
+    document.getElementById('policy-rate-grid').innerHTML = [
+      { label: 'Meals / day',   value: data.meal_daily_rate       ? `$${parseFloat(data.meal_daily_rate).toFixed(2)}`       : '—' },
+      { label: 'Hotel / night', value: data.hotel_nightly_cap     ? `$${parseFloat(data.hotel_nightly_cap).toFixed(2)}`     : '—' },
+      { label: 'Mileage / mi',  value: data.mileage_rate_per_mile ? `$${parseFloat(data.mileage_rate_per_mile).toFixed(3)}` : '—' },
+    ].map(r => `
+      <div class="rate-card">
+        <div class="rate-value">${r.value}</div>
+        <div class="rate-label">${r.label}</div>
+      </div>`).join('');
+
+    document.getElementById('policy-rate-source').textContent =
+      data.source ? `Source: ${data.source}` : '';
+    loading.hidden = true;
+    rates.hidden   = false;
+  } catch {
+    wrap.hidden = true;
+  }
+}
+
+// ============================================================
+// MILEAGE MODAL
+// ============================================================
+function openMileageModal() {
+  ['m-origin','m-dest','m-miles','m-rate'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('m-roundtrip').checked = true;
+  hideError('mileage-error', 'mileage-error-msg');
+  document.getElementById('mileage-modal').hidden = false;
+  document.getElementById('m-origin').focus();
+}
+
+function closeMileageModal(e) {
+  if (!e || e.target.id === 'mileage-modal') {
+    document.getElementById('mileage-modal').hidden = true;
+  }
+}
+
+function saveMileageEntry() {
+  const origin = document.getElementById('m-origin').value.trim();
+  const dest   = document.getElementById('m-dest').value.trim();
+  const miles  = parseFloat(document.getElementById('m-miles').value);
+  const rt     = document.getElementById('m-roundtrip').checked;
+  const rateV  = document.getElementById('m-rate').value;
+  const rate   = rateV ? parseFloat(rateV) : null;
+
+  if (!origin || !dest || !miles || miles <= 0) {
+    showError('mileage-error', 'mileage-error-msg', 'Origin, destination, and valid miles are required.');
+    return;
+  }
+
+  const entry = { origin, destination: dest, miles, is_round_trip: rt };
+  if (rate && rate > 0) entry.rate_per_mile = rate;
+  mileageEntries.push(entry);
+  renderMileageList();
+  document.getElementById('mileage-modal').hidden = true;
+}
+
+function removeMileage(idx) {
+  mileageEntries.splice(idx, 1);
+  renderMileageList();
+}
+
+function renderMileageList() {
+  const el = document.getElementById('mileage-list');
+  el.innerHTML = mileageEntries.map((e, i) => `
+    <div class="mileage-entry">
+      <span>
+        <strong>${escHtml(e.origin)}</strong>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin:0 4px;vertical-align:middle"><polyline points="9 18 15 12 9 6"/></svg>
+        <strong>${escHtml(e.destination)}</strong>
+        &nbsp;·&nbsp; ${e.miles} mi ${e.is_round_trip ? '(round trip)' : '(one way)'}
+        ${e.rate_per_mile ? ` · $${e.rate_per_mile}/mi` : ''}
+      </span>
+      <button class="btn btn-danger btn-sm" onclick="removeMileage(${i})" aria-label="Remove mileage entry">Remove</button>
+    </div>`).join('');
+}
+
+// ============================================================
+// STEP 2 — File Upload
+// ============================================================
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  onFilesSelected(e.dataTransfer.files);
+});
+dropZone.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('file-input').click(); }
+});
+
+function onFilesSelected(files) {
+  for (const f of files) {
+    if (!selectedFiles.find(x => x.name === f.name)) selectedFiles.push(f);
+  }
+  renderFileList();
+}
+
+function removeFile(name) {
+  selectedFiles = selectedFiles.filter(f => f.name !== name);
+  delete fileCategoryHints[name];
+  renderFileList();
+}
+
+function setCategoryHint(filename, category) {
+  if (category) fileCategoryHints[filename] = category;
+  else delete fileCategoryHints[filename];
+}
+
+function renderFileList() {
+  const el = document.getElementById('file-list');
+  const categories = ['airfare','hotel','taxi','meals','parking','other'];
+  el.innerHTML = selectedFiles.map(f => {
+    const esc = f.name.replace(/'/g, "\\'");
+    const isPDF = f.type === 'application/pdf';
+    const hint = fileCategoryHints[f.name] || '';
+    const opts = `<option value="">AI decides</option>` +
+      categories.map(c =>
+        `<option value="${c}"${c===hint?' selected':''}>${c.charAt(0).toUpperCase()+c.slice(1)}</option>`
+      ).join('');
+    const sizeKB = (f.size / 1024);
+    const sizeStr = sizeKB >= 1024 ? `${(sizeKB/1024).toFixed(1)} MB` : `${sizeKB.toFixed(0)} KB`;
+
+    return `
+    <div class="file-item">
+      <span class="file-item-icon" aria-hidden="true">
+        ${isPDF
+          ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`
+          : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`
+        }
+      </span>
+      <span class="file-name" title="${escHtml(f.name)}">${escHtml(f.name)}</span>
+      <span class="file-size">${sizeStr}</span>
+      <select class="file-category-select"
+        onchange="setCategoryHint('${esc}', this.value)"
+        aria-label="Category hint for ${escHtml(f.name)}">${opts}</select>
+      <button class="btn btn-secondary btn-sm"
+        onclick="removeFile('${esc}')"
+        aria-label="Remove ${escHtml(f.name)}">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+async function submitStep2() {
+  if (selectedFiles.length === 0 && mileageEntries.length === 0) {
+    showError('step2-error', 'step2-error-msg', 'Please upload at least one receipt or add a mileage entry.');
+    return;
+  }
+
+  const btn = document.getElementById('step2-next-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Uploading…';
+
+  if (selectedFiles.length > 0) {
+    const formData = new FormData();
+    selectedFiles.forEach(f => formData.append('files', f));
+    if (Object.keys(fileCategoryHints).length) {
+      formData.append('category_hints', JSON.stringify(fileCategoryHints));
+    }
+
+    try {
+      const res = await fetch(`/sessions/${sessionId}/receipts`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch (err) {
+      showError('step2-error', 'step2-error-msg', `Upload failed: ${err.message}`);
+      btn.disabled = false;
+      btn.innerHTML = 'Process Expenses <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
+      return;
+    }
+  }
+
+  hideError('step2-error', 'step2-error-msg');
+  btn.disabled = false;
+  btn.innerHTML = 'Process Expenses <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
+  goToStep(3);
+  startProcessing();
+}
+
+// ============================================================
+// STEP 3 — Processing
+// ============================================================
+async function startProcessing() {
+  addLog('Sending request to AI pipeline…');
+  setStage('extract', 'active');
+  try {
+    const res = await fetch(`/sessions/${sessionId}/process`, { method: 'POST' });
+    if (!res.ok) throw new Error(await res.text());
+    addLog('Pipeline started — connecting to live updates…', 'info');
+    connectWebSocket();
+  } catch (err) {
+    addLog(`ERROR: ${err.message}`, 'error');
+  }
+}
+
+function connectWebSocket() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const url   = `${proto}://${location.host}/ws/${sessionId}`;
+  try {
+    wsConn = new WebSocket(url);
+    wsConn.onopen    = () => addLog('Real-time connection established.', 'info');
+    wsConn.onmessage = e => handleWsMessage(JSON.parse(e.data));
+    wsConn.onerror   = () => { addLog('WebSocket failed — switching to polling.', 'warn'); startPolling(); };
+    wsConn.onclose   = () => { if (wsConn) addLog('Connection closed.'); };
+  } catch {
+    addLog('WebSocket not available — polling fallback.', 'warn');
+    startPolling();
+  }
+}
+
+function handleWsMessage(data) {
+  if (data.type === 'progress') {
+    updateProgress(data.pct, data.done, data.total, data.message);
+  } else if (data.type === 'status') {
+    addLog(data.message);
+    if (data.status === 'generating_pdf') setStage('pdf', 'active');
+  } else if (data.type === 'completed') {
+    updateProgress(100, null, null, 'Processing complete!');
+    setStage('pdf', 'done');
+    addLog('Report generated successfully!', 'info');
+    if (wsConn) { wsConn.onclose = null; wsConn.close(); wsConn = null; }
+    setTimeout(() => { loadResults(); goToStep(4); }, 1000);
+  } else if (data.type === 'failed') {
+    addLog(data.message, 'error');
+    setStage('extract', ''); setStage('verify', ''); setStage('pdf', '');
+  }
+}
+
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(pollStatus, 2000);
+}
+
+async function pollStatus() {
+  try {
+    const res  = await fetch(`/sessions/${sessionId}/status`);
+    const data = await res.json();
+    const pct  = data.progress_pct || 0;
+
+    updateProgress(pct, data.items_done, data.items_total,
+      `${data.items_done} / ${data.items_total} items processed`);
+
+    if (data.status === 'completed') {
+      clearInterval(pollTimer);
+      addLog('All items processed!', 'info');
+      setTimeout(() => { loadResults(); goToStep(4); }, 600);
+    } else if (data.status === 'failed') {
+      clearInterval(pollTimer);
+      addLog(`Processing failed: ${data.error}`, 'error');
+    }
+  } catch {}
+}
+
+function updateProgress(pct, done, total, message) {
+  const bar   = document.getElementById('progress-bar');
+  const label = document.getElementById('progress-label');
+  const prog  = document.querySelector('.progress-outer');
+
+  bar.style.width = `${pct}%`;
+  prog.setAttribute('aria-valuenow', pct);
+  if (message) label.textContent = message;
+  if (done !== null) {
+    if (done > 0) {
+      setStage('extract', pct < 80 ? 'active' : 'done');
+      setStage('verify',  pct >= 20 && pct < 95 ? 'active' : pct >= 95 ? 'done' : '');
+    }
+    if (pct > lastPct) { addLog(message || `Progress: ${pct}%`); lastPct = pct; }
+  }
+}
+
+function setStage(name, state) {
+  const el = document.getElementById(`stage-${name}`);
+  if (!el) return;
+  el.className = `stage-card${state ? ' '+state : ''}`;
+}
+
+function addLog(msg, type = '') {
+  const log  = document.getElementById('process-log');
+  const line = document.createElement('div');
+  line.className = `terminal-line${type ? ' '+type : ''}`;
+  const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+  line.innerHTML = `<span class="ts">[${ts}]</span> ${escHtml(msg)}`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ============================================================
+// STEP 4 — Results
+// ============================================================
+async function loadResults() {
+  try {
+    const res  = await fetch(`/sessions/${sessionId}/results`);
+    const data = await res.json();
+    const s    = data.summary || {};
+    const items = data.expense_items || [];
+
+    renderSummaryCards(s, items);
+    renderResultsTable(items);
+    renderPolicyNotes(items);
+    renderCategoryChart(items);
+  } catch (err) {
+    console.error('Failed to load results:', err);
+  }
+}
+
+function renderSummaryCards(s, items) {
+  const reviewCount = s.items_requiring_review || 0;
+  const reviewedCount = items.filter(it => it.manager_reviewed).length;
+  
+  // Show/hide Manager Review button
+  const revBtn = document.getElementById('manager-review-btn');
+  const revCountEl = document.getElementById('manager-review-count');
+  
+  if (revBtn) {
+    if (reviewCount > 0 || reviewedCount > 0) {
+      revBtn.hidden = false;
+      if (reviewCount === 0) {
+        revBtn.style.borderColor = 'var(--glass-border)';
+        revBtn.style.color = 'var(--text-color)';
+        if (revCountEl) revCountEl.textContent = 'Resolved';
+      } else {
+        revBtn.style.borderColor = 'var(--amber)';
+        revBtn.style.color = 'var(--amber)';
+        if (revCountEl) revCountEl.textContent = reviewCount;
+      }
+    } else {
+      revBtn.hidden = true;
+    }
+  }
+  const cards = document.getElementById('summary-cards');
+  cards.innerHTML = `
+    <div class="summary-card">
+      <div class="summary-card-icon blue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      </div>
+      <div class="summary-card-body">
+        <div class="summary-card-amount">$${fmt(s.total_claimed)}</div>
+        <div class="summary-card-label">Total Claimed</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-icon green">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="summary-card-body">
+        <div class="summary-card-amount" style="color:var(--green)">$${fmt(s.total_approved)}</div>
+        <div class="summary-card-label">Total Approved</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-icon ${reviewCount > 0 ? 'red' : 'green'}">
+        ${reviewCount > 0
+          ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`
+          : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>`
+        }
+      </div>
+      <div class="summary-card-body">
+        <div class="summary-card-amount" style="color:${reviewCount > 0 ? 'var(--red)' : 'var(--green)'}">
+          ${reviewCount}
+        </div>
+        <div class="summary-card-label">${reviewCount === 1 ? 'Item' : 'Items'} Needing Review</div>
+      </div>
+    </div>`;
+}
+
+function renderResultsTable(items) {
+  document.getElementById('results-count').textContent = `(${items.length} item${items.length !== 1 ? 's' : ''})`;
+  const tbody = document.getElementById('results-tbody');
+  tbody.innerHTML = '';
+
+  items.forEach((item, i) => {
+    const ext  = item.extracted || {};
+    const pol  = item.policy_check || {};
+    const mil  = item.mileage || {};
+    const claimed  = ext.amount || pol.claimed_amount || 0;
+    const approved = item.final_approved_amount || 0;
+    const vendor   = ext.vendor || (mil.origin ? `${mil.origin} → ${mil.destination}` : '—');
+    const category = mil.origin ? 'mileage' : (ext.category || pol.category || 'other');
+    const date     = ext.date || '—';
+    const filename = item.receipt_filename;
+
+    const badge = item.requires_manager_review
+      ? '<span class="badge badge-rev">Review</span>'
+      : (!pol.is_compliant || parseFloat(approved) < parseFloat(claimed))
+        ? '<span class="badge badge-adj">Adjusted</span>'
+        : '<span class="badge badge-ok">Approved</span>';
+
+    const thumbCell = filename
+      ? `<button class="receipt-thumb" onclick="openLightbox('${escHtml(filename).replace(/'/g,"\\'")}', ${i})"
+             title="Preview ${escHtml(filename)}" aria-label="Preview receipt">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+         </button>`
+      : '—';
+
+    // Main row
+    const tr = document.createElement('tr');
+    tr.id = `row-${i}`;
+    tr.innerHTML = `
+      <td><span style="color:var(--text-muted);font-family:'Fira Code',monospace;font-size:.8rem">${i+1}</span></td>
+      <td><span style="font-family:'Fira Code',monospace;font-size:.82rem">${escHtml(String(date))}</span></td>
+      <td><span style="text-transform:capitalize">${escHtml(category)}</span></td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(String(vendor))}">${escHtml(String(vendor))}</td>
+      <td class="right"><span style="font-family:'Fira Code',monospace">$${fmt(claimed)}</span></td>
+      <td class="right">${item.requires_manager_review
+        ? `<span style="font-family:'Fira Code',monospace;color:var(--text-muted)">—</span>`
+        : `<span style="font-family:'Fira Code',monospace;color:${parseFloat(approved)<parseFloat(claimed)?'var(--amber)':'var(--green)'}">$${fmt(approved)}</span>`
+      }</td>
+      <td>${badge}</td>
+      <td>${thumbCell}</td>`;
+    tbody.appendChild(tr);
+
+    // Notes toggle row
+    if (pol.notes || pol.policy_source) {
+      const notesTr = document.createElement('tr');
+      notesTr.className = 'notes-row';
+      notesTr.id = `notes-row-${i}`;
+      notesTr.hidden = true;
+      const cleanedNote = cleanPolicyNote(pol.notes);
+      const noteIsError = pol.notes && (pol.notes.startsWith('Processing error:') || pol.notes.includes("'type': 'error'"));
+      notesTr.innerHTML = `
+        <td colspan="8">
+          <div class="notes-content">
+            ${pol.policy_source && !noteIsError ? `<div class="policy-src" style="${pol.policy_source.startsWith('Internal Policy:') ? 'color:#a78bfa' : ''}">Source: ${escHtml(pol.policy_source)}</div>` : ''}
+            ${cleanedNote ? `<div style="color:${noteIsError ? 'var(--amber)' : 'inherit'}">${escHtml(cleanedNote)}</div>` : ''}
+          </div>
+        </td>`;
+      tbody.appendChild(notesTr);
+
+      // Add toggle to main row
+      const toggleTd = document.createElement('td');
+      const lastTd = tr.querySelector('td:last-child');
+      // Append notes toggle to vendor cell
+      const vendorTd = tr.querySelectorAll('td')[3];
+      vendorTd.innerHTML += `<br><span class="notes-toggle" onclick="toggleNotes(${i})" role="button" tabindex="0"
+        onkeydown="if(event.key==='Enter')toggleNotes(${i})">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        notes</span>`;
+    }
+  });
+}
+
+function toggleNotes(i) {
+  const row = document.getElementById(`notes-row-${i}`);
+  if (row) row.hidden = !row.hidden;
+}
+
+function cleanPolicyNote(notes) {
+  if (!notes) return '';
+  // Detect raw API error strings and show a clean message
+  if (notes.startsWith('Processing error:') || notes.includes("'type': 'error'") || notes.includes('"type": "error"')) {
+    return 'Policy verification could not be completed for this item. Manager review required.';
+  }
+  return notes;
+}
+
+function renderPolicyNotes(items) {
+  const section = document.getElementById('policy-notes-section');
+  const list    = document.getElementById('policy-notes-list');
+  const adjusted = items.filter(it => it.policy_check && (it.policy_check.notes || !it.policy_check.is_compliant));
+  if (!adjusted.length) { section.hidden = true; return; }
+  section.hidden = false;
+  list.innerHTML = adjusted.map((item, i) => {
+    const ext = item.extracted || {};
+    const pol = item.policy_check;
+    const notes = cleanPolicyNote(pol.notes);
+    const isError = pol.notes && (pol.notes.startsWith('Processing error:') || pol.notes.includes("'type': 'error'"));
+    return `<div style="padding:12px 0;border-bottom:1px solid var(--glass-border)">
+      <div style="font-weight:600;font-size:.84rem;margin-bottom:4px">
+        ${escHtml(ext.vendor || (item.mileage ? 'Mileage' : 'Unknown Vendor'))} — ${escHtml( (item.mileage ? 'mileage' : (ext.category || pol.category || 'other')).replace(/\b\w/g,c=>c.toUpperCase()) )}
+      </div>
+      ${pol.policy_source && !isError ? `<div style="font-size:.75rem;color:var(--accent);margin-bottom:4px">Policy: ${escHtml(pol.policy_source)}</div>` : ''}
+      ${notes ? `<div style="font-size:.82rem;color:${isError ? 'var(--amber)' : 'var(--text-muted)'};line-height:1.65;word-break:break-word;overflow-wrap:break-word;max-height:120px;overflow-y:auto">${escHtml(notes)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderCategoryChart(items) {
+  const chartBox = document.getElementById('chart-box');
+  const canvas   = document.getElementById('category-chart');
+  if (!items.length) return;
+
+  const catTotals = {};
+  items.forEach(item => {
+    const cat = item.mileage ? 'mileage' : ((item.extracted && item.extracted.category) || (item.policy_check && item.policy_check.category) || 'other');
+    const amt = parseFloat(item.final_approved_amount || 0);
+    catTotals[cat] = (catTotals[cat] || 0) + amt;
+  });
+
+  const nonZero = Object.entries(catTotals).filter(([,v]) => v > 0);
+  if (!nonZero.length) return;
+
+  chartBox.hidden = false;
+
+  const COLORS = {
+    airfare: '#3b82f6', hotel: '#8b5cf6', meals: '#f59e0b',
+    taxi: '#06b6d4', parking: '#64748b', mileage: '#22c55e', other: '#94a3b8',
+  };
+
+  if (categoryChart) categoryChart.destroy();
+  categoryChart = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: nonZero.map(([k]) => k.charAt(0).toUpperCase()+k.slice(1)),
+      datasets: [{
+        data: nonZero.map(([,v]) => v.toFixed(2)),
+        backgroundColor: nonZero.map(([k]) => COLORS[k] || '#94a3b8'),
+        borderColor: '#0f172a',
+        borderWidth: 2,
+        hoverOffset: 6,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      cutout: '68%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` $${parseFloat(ctx.raw).toFixed(2)}`,
+          },
+          backgroundColor: '#1e293b',
+          titleColor: '#f8fafc',
+          bodyColor: '#94a3b8',
+          borderColor: '#334155',
+          borderWidth: 1,
+        },
+      },
+      animation: { duration: 600, easing: 'easeOutQuart' },
+    },
+  });
+}
+
+// ============================================================
+// LIGHTBOX
+// ============================================================
+function openLightbox(filename, idx) {
+  const img = document.getElementById('lightbox-img');
+  img.src = `/sessions/${sessionId}/receipt-image/${encodeURIComponent(filename)}`;
+  img.alt = `Receipt: ${filename}`;
+  document.getElementById('lightbox').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').hidden = true;
+  document.body.style.overflow = '';
+}
+
+// ============================================================
+// DOWNLOADS
+// ============================================================
+function downloadPDF() {
+  window.open(`/sessions/${sessionId}/report?t=${Date.now()}`, '_blank');
+}
+function downloadCSV() {
+  window.location.href = `/sessions/${sessionId}/export/csv`;
+}
+
+// ============================================================
+// HISTORY PANEL
+// ============================================================
+async function openHistory() {
+  document.getElementById('history-panel').classList.add('open');
+  document.getElementById('history-backdrop').hidden = false;
+  document.body.style.overflow = 'hidden';
+  await loadHistory();
+}
+
+function closeHistory() {
+  document.getElementById('history-panel').classList.remove('open');
+  document.getElementById('history-backdrop').hidden = true;
+  document.body.style.overflow = '';
+}
+
+async function loadHistory() {
+  const body = document.getElementById('history-body');
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:.85rem">Loading…</div>';
+  try {
+    const res  = await fetch('/sessions?limit=20');
+    const data = await res.json();
+    const sessions = data.sessions || [];
+
+    if (!sessions.length) {
+      body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:.85rem">No reports found.</div>';
+      return;
+    }
+
+    const STATUS_BADGE = {
+      completed: '<span class="badge badge-ok">Complete</span>',
+      processing: '<span class="badge badge-adj">Processing</span>',
+      failed: '<span class="badge badge-rev">Failed</span>',
+      draft: '<span class="badge" style="background:rgba(100,116,139,0.1);color:var(--text-muted);border:1px solid rgba(100,116,139,0.2)">Draft</span>',
+    };
+
+    body.innerHTML = sessions.map(s => `
+      <div class="history-item">
+        <div class="history-item-top">
+          <span class="history-item-name">${escHtml(s.submitter_name || '—')}</span>
+          ${STATUS_BADGE[s.status] || STATUS_BADGE.draft}
+        </div>
+        <div class="history-item-meta">
+          <span>${escHtml(s.department || '—')} · ${escHtml(s.destination || '—')}</span>
+          <span>${escHtml(s.trip_dates || '—')}</span>
+          <span style="font-size:.72rem;color:var(--text-muted)">${s.trip_purpose ? escHtml(s.trip_purpose.substring(0,60)) : ''}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span class="history-item-amount">${s.total_approved != null ? `$${fmt(s.total_approved)} approved` : '—'}</span>
+          ${s.status === 'completed'
+            ? `<button class="btn btn-secondary btn-sm" onclick="openHistorySession('${s.session_id}')">Open</button>`
+            : ''
+          }
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    body.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red);font-size:.85rem">Failed to load history.</div>`;
+  }
+}
+
+async function openHistorySession(sid) {
+  closeHistory();
+  sessionId = sid;
+  goToStep(4);
+  await loadResults();
+}
+
+// ============================================================
+// START OVER
+// ============================================================
+function startOver() {
+  if (wsConn) { wsConn.onclose = null; wsConn.close(); wsConn = null; }
+  clearInterval(pollTimer);
+
+  sessionId = null;
+  selectedFiles = [];
+  mileageEntries = [];
+  fileCategoryHints = {};
+  lastPct = 0;
+  expandedRows = new Set();
+
+  // Reset form
+  ['submitter_name','submitter_email','department','trip_purpose',
+   'trip_start_date','trip_end_date','destination_city','destination_state']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['po-meal-cap','po-hotel-cap','po-mileage-rate']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+
+  document.getElementById('policy-preview-wrap').hidden = true;
+  document.getElementById('policy-override-body').hidden = true;
+  document.getElementById('policy-caret').classList.remove('open');
+  document.getElementById('mileage-body').hidden = false;
+  document.getElementById('mileage-caret').classList.add('open');
+  document.getElementById('process-log').innerHTML =
+    '<div class="terminal-line info"><span class="ts">[00:00:00]</span> Pipeline ready. Waiting for Claude…</div>';
+  document.getElementById('progress-bar').style.width = '0%';
+  document.getElementById('progress-label').textContent = 'Initializing pipeline…';
+
+  // Reset stages
+  ['extract','verify','pdf'].forEach(s => setStage(s, ''));
+
+  renderMileageList();
+  renderFileList();
+  if (categoryChart) { categoryChart.destroy(); categoryChart = null; }
+
+  goToStep(1);
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function v(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+function fmt(n) {
+  return parseFloat(n || 0).toFixed(2);
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function showError(containerId, msgId, msg) {
+  const c = document.getElementById(containerId);
+  const m = document.getElementById(msgId);
+  if (m) m.textContent = msg;
+  if (c) c.hidden = false;
+}
+
+function hideError(containerId) {
+  const c = document.getElementById(containerId);
+  if (c) c.hidden = true;
+}
+
+// ============================================================
+// KEYBOARD ESCAPE TO CLOSE MODALS
+// ============================================================
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeLightbox();
+    document.getElementById('mileage-modal').hidden = true;
+    document.getElementById('policy-doc-modal').hidden = true;
+    closeHistory();
+    closeManagerDashboard();
+  }
+});
+
+// ============================================================
+// CORPORATE POLICY DOCUMENTS (RAG)
+// ============================================================
+let _policyDocsList = [];
+let _policyDocsLoaded = false;
+
+async function loadPolicyDocs() {
+  if (_policyDocsLoaded) return; // only hit the server once per page load
+  _policyDocsLoaded = true;
+  const el = document.getElementById('policy-docs-list');
+  if (!el) return;
+  try {
+    const res = await fetch('/policy-documents');
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    _policyDocsList = data.documents || [];
+    renderPolicyDocsList();
+  } catch(err) {
+    if (el) el.innerHTML = `<div style="color:var(--red);font-size:.8rem">Failed to load: ${escHtml(String(err.message))}</div>`;
+  }
+}
+
+async function reloadPolicyDocs() {
+  _policyDocsLoaded = false;
+  await loadPolicyDocs();
+}
+
+function renderPolicyDocsList() {
+  const el = document.getElementById('policy-docs-list');
+  if (!el) return;
+  if (!_policyDocsList.length) {
+    el.innerHTML = '<div style="font-size:.82rem;color:var(--text-muted)">No policy documents uploaded yet.</div>';
+    return;
+  }
+  el.innerHTML = _policyDocsList.map(doc => {
+    const statusBadge = doc.status === 'ready'
+      ? '<span class="badge badge-ok" style="font-size:.68rem">Ready</span>'
+      : doc.status === 'processing'
+        ? '<span class="badge badge-adj" style="font-size:.68rem">Indexing…</span>'
+        : '<span class="badge badge-rev" style="font-size:.68rem">Error</span>';
+    return `
+<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface-2);border-radius:8px;margin-bottom:6px">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent);flex-shrink:0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+  <span style="flex:1;font-size:.82rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(doc.display_name || doc.filename)}</span>
+  <span style="font-size:.7rem;color:var(--text-muted);white-space:nowrap">${doc.chunk_count} chunks</span>
+  ${statusBadge}
+  <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:.72rem;border-color:var(--red);color:var(--red)" onclick="deletePolicyDoc('${escHtml(doc.doc_id)}')">Delete</button>
+</div>`;
+  }).join('');
+}
+
+function openPolicyDocModal() {
+  document.getElementById('policy-doc-file').value = '';
+  document.getElementById('policy-doc-name').value = '';
+  document.getElementById('policy-doc-desc').value = '';
+  document.getElementById('policy-doc-upload-error').hidden = true;
+  document.getElementById('policy-doc-modal').hidden = false;
+}
+
+function closePolicyDocModal(e) {
+  if (!e || e.target.id === 'policy-doc-modal') {
+    document.getElementById('policy-doc-modal').hidden = true;
+  }
+}
+
+async function uploadPolicyDoc() {
+  const fileInput = document.getElementById('policy-doc-file');
+  const name = document.getElementById('policy-doc-name').value.trim();
+  const desc = document.getElementById('policy-doc-desc').value.trim();
+  const errBox = document.getElementById('policy-doc-upload-error');
+  const errMsg = document.getElementById('policy-doc-upload-error-msg');
+
+  if (!fileInput.files.length) {
+    errBox.hidden = false; errMsg.textContent = 'Please select a PDF file.'; return;
+  }
+
+  const btn = document.getElementById('policy-doc-upload-btn');
+  btn.disabled = true; btn.textContent = 'Uploading…';
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+  if (name) formData.append('display_name', name);
+  if (desc) formData.append('description', desc);
+
+  try {
+    const res = await fetch('/policy-documents', { method: 'POST', body: formData });
+    if (!res.ok) throw new Error(await res.text());
+    closePolicyDocModal();
+    await reloadPolicyDocs();
+    // Poll until status flips to ready
+    setTimeout(async () => { await reloadPolicyDocs(); }, 4000);
+  } catch(err) {
+    errBox.hidden = false;
+    errMsg.textContent = 'Upload failed: ' + err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Upload & Index';
+  }
+}
+
+async function deletePolicyDoc(docId) {
+  if (!confirm('Delete this policy document? Claude will no longer reference it for new reports.')) return;
+  try {
+    const res = await fetch(`/policy-documents/${docId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(await res.text());
+    await reloadPolicyDocs();
+  } catch(err) {
+    alert('Delete failed: ' + err.message);
+  }
+}
+
+// ============================================================
+// MANAGER REVIEW DASHBOARD
+// ============================================================
+let _managerReviewItems = [];
+
+async function openManagerDashboard() {
+  document.getElementById('manager-panel').classList.add('open');
+  document.getElementById('manager-backdrop').hidden = false;
+  document.body.style.overflow = 'hidden';
+  await loadManagerReviewItems();
+}
+
+function closeManagerDashboard() {
+  const panel = document.getElementById('manager-panel');
+  if (panel) panel.classList.remove('open');
+  const bd = document.getElementById('manager-backdrop');
+  if (bd) bd.hidden = true;
+  document.body.style.overflow = '';
+}
+
+async function loadManagerReviewItems() {
+  if (!sessionId) return;
+  const body = document.getElementById('manager-review-body');
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:.85rem">Loading…</div>';
+  try {
+    const res = await fetch(`/sessions/${sessionId}/review-items`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    _managerReviewItems = data.items_requiring_review || [];
+    renderManagerQueue(data.items_requiring_review || [], data.total_review_count || 0, data.reviewed_count || 0);
+  } catch(err) {
+    body.innerHTML = `<div style="color:var(--red);padding:24px;font-size:.85rem">Error loading review queue: ${escHtml(String(err.message))}</div>`;
+  }
+}
+
+function renderManagerQueue(items, total, done) {
+  const body = document.getElementById('manager-review-body');
+  const label = document.getElementById('manager-progress-label');
+  const regenBtn = document.getElementById('manager-regen-btn');
+  const regenHint = document.getElementById('manager-regen-hint');
+
+  if (label) label.textContent = `${done}/${total} reviewed`;
+  const allDone = total > 0 && done >= total;
+  if (regenBtn) { regenBtn.disabled = !allDone; regenBtn.style.opacity = allDone ? '1' : '.5'; }
+  if (regenHint) regenHint.hidden = !allDone;
+
+  if (!items.length) {
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--green);font-size:.9rem">✓ All items resolved — no pending reviews.</div>';
+    return;
+  }
+
+  body.innerHTML = items.map((item, i) => {
+    const ext = item.extracted || {};
+    const pol = item.policy_check || {};
+    const reviewed = item.manager_reviewed;
+    const confPct = ext.confidence_score != null ? Math.round(ext.confidence_score * 100) : null;
+    return `
+<div style="margin:12px;padding:16px;background:var(--surface-2);border-radius:12px;border-left:3px solid ${reviewed ? 'var(--green)' : 'var(--amber)'}">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <strong style="flex:1;font-size:.92rem">${escHtml(ext.vendor || 'Unknown Vendor')} — ${escHtml((ext.category || 'other').charAt(0).toUpperCase() + (ext.category || 'other').slice(1))}</strong>
+    ${reviewed
+      ? '<span class="badge badge-ok">Reviewed</span>'
+      : '<span class="badge badge-rev">Pending Review</span>'}
+  </div>
+  ${item.receipt_image_url ? `<img src="${escHtml(item.receipt_image_url)}" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;background:#0f172a;margin-bottom:12px;cursor:zoom-in" onclick="openLightbox('${escHtml(item.receipt_filename || '')}', 0)" alt="Receipt" loading="lazy" />` : ''}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.78rem;color:var(--text-muted);margin-bottom:10px">
+    <span>Date: <strong style="color:var(--text-1)">${escHtml(String(ext.date || '—'))}</strong></span>
+    <span>Claimed: <strong style="color:var(--text-1)">$${fmt(ext.amount || 0)}</strong></span>
+    <span>AI Limit: <strong style="color:var(--text-1)">${pol.policy_limit ? '$'+fmt(pol.policy_limit) : 'N/A'}</strong></span>
+    <span>Confidence: <strong style="color:${confPct != null && confPct < 60 ? 'var(--red)' : 'var(--text-1)'}">${confPct != null ? confPct+'%' : '—'}</strong></span>
+  </div>
+  ${pol.notes ? `<div style="font-size:.78rem;color:var(--amber);background:rgba(245,158,11,0.08);border-radius:6px;padding:8px 10px;margin-bottom:10px">${escHtml(pol.notes)}</div>` : ''}
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="form-group" style="margin-bottom:0">
+      <label style="font-size:.72rem;margin-bottom:4px;display:block">Approved Amount ($)</label>
+      <input id="rev-amount-${i}" type="number" step="0.01" min="0"
+        value="${item.manager_approved_amount || ext.amount || 0}"
+        style="font-size:.85rem;padding:8px 10px;width:100%;box-sizing:border-box" />
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label style="font-size:.72rem;margin-bottom:4px;display:block">Manager Notes (optional)</label>
+      <input id="rev-notes-${i}" type="text" placeholder="Verification note…"
+        value="${escHtml(item.manager_notes || '')}"
+        style="font-size:.85rem;padding:8px 10px;width:100%;box-sizing:border-box" />
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-secondary btn-sm" style="border-color:var(--red);color:var(--red)" onclick="submitManagerReview('${escHtml(item.id)}', ${i}, false)">
+        Deny / Flag
+      </button>
+      <button class="btn btn-secondary btn-sm" style="border-color:var(--green);color:var(--green)" onclick="submitManagerReview('${escHtml(item.id)}', ${i}, true)">
+        ✓ Approve
+      </button>
+    </div>
+  </div>
+</div>`;
+  }).join('');
+}
+
+async function submitManagerReview(itemId, idx, approve) {
+  const amountEl = document.getElementById(`rev-amount-${idx}`);
+  const notesEl  = document.getElementById(`rev-notes-${idx}`);
+  const approvedAmount = parseFloat(amountEl ? amountEl.value : 0) || 0;
+  const notes = notesEl ? notesEl.value.trim() : '';
+
+  try {
+    const res = await fetch(`/sessions/${sessionId}/items/${itemId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        manager_approved_amount: approvedAmount,
+        manager_notes: notes || null,
+        approve,
+      }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    // Reload queue + refresh main results table
+    await loadManagerReviewItems();
+    await loadResults();
+  } catch(err) {
+    alert('Error saving review: ' + err.message);
+  }
+}
+
+async function managerRegeneratePDF() {
+  const btn = document.getElementById('manager-regen-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Regenerating…'; }
+  try {
+    const res = await fetch(`/sessions/${sessionId}/regenerate-pdf`, { method: 'POST' });
+    if (!res.ok) throw new Error(await res.text());
+    await loadResults();
+    downloadPDF();
+    closeManagerDashboard();
+  } catch(err) {
+    alert('PDF regeneration failed: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Regenerate PDF';
+    }
+  }
+}
+
+// ============================================================
+// POLICY PREVIEW — attach listeners after DOM ready
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  // Preload policy docs list on startup (lazy: only renders when section is expanded)
+  loadPolicyDocs();
+
+  ['destination_city','destination_state','trip_start_date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', schedulePolicyPreview);
+      el.addEventListener('change', schedulePolicyPreview);
+    }
+  });
+});
+</script>
+
+</body>
+</html>

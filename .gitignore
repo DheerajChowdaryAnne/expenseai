@@ -1,0 +1,57 @@
+# ── Python ─────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments ────────────────────────────────────────────────────
+venv/
+env/
+.venv/
+ENV/
+
+# ── Environment variables (NEVER commit API keys!) ──────────────────────────
+.env
+# Keep .env.example — it's the template without real keys
+!.env.example
+
+# ── Database files ──────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Generated runtime directories ──────────────────────────────────────────
+# These are created automatically at runtime and should not be in source control
+uploads/
+reports/
+chroma_db/
+policy_docs/
+
+# ── macOS system files ──────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# ── IDE / editor files ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Jupyter Notebooks ───────────────────────────────────────────────────────
+.ipynb_checkpoints
+
+# ── Testing ─────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Logs ────────────────────────────────────────────────────────────────────
+*.log
